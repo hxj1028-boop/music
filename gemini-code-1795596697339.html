@@ -1,0 +1,2156 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>音律雅集 — 3D 中式古雅音樂視覺化工作室 V4</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+    }
+  }
+  </script>
+  <style>
+    :root {
+      --bg-ink: #0f0d0c;
+      --paper-bg: rgba(24, 20, 17, 0.88);
+      --paper-border: #c5a059;
+      --cinnabar: #b83b2b;
+      --cinnabar-hover: #d14836;
+      --gold-accent: #d4af37;
+      --jade-accent: #5c8a72;
+      --text-main: #f3ece0;
+      --text-muted: #b0a493;
+      --font-serif: "Noto Serif TC", "Songti TC", "PMingLiU", serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-ink);
+      color: var(--text-main);
+      font-family: var(--font-serif);
+      user-select: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background: radial-gradient(circle at center, #1c1714 0%, #0a0807 100%);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 中式宣紙紋理與雲雷迴紋框 */
+    .scroll-panel {
+      background: var(--paper-bg);
+      background-image:
+        radial-gradient(rgba(212, 175, 55, 0.04) 1px, transparent 0),
+        linear-gradient(180deg, rgba(35, 29, 24, 0.94) 0%, rgba(18, 15, 13, 0.94) 100%);
+      background-size: 16px 16px, 100% 100%;
+      border: 1px solid var(--paper-border);
+      box-shadow:
+        0 10px 30px rgba(0, 0, 0, 0.75),
+        inset 0 0 0 3px rgba(15, 13, 12, 0.85),
+        inset 0 0 0 4px rgba(197, 160, 89, 0.35);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+    }
+
+    /* 頂部牌匾標題與快捷印章鈕 */
+    #top-plaque {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 18px;
+      border-radius: 4px;
+      max-width: calc(100vw - 24px);
+    }
+
+    .plaque-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .seal-stamp {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--cinnabar);
+      color: #fff8ee;
+      border: 1px solid #e67e6e;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 2px;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 6px rgba(184, 59, 43, 0.45);
+    }
+
+    .plaque-title h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--gold-accent);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+
+    .plaque-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 中式按鈕 */
+    .cn-btn {
+      background: rgba(34, 28, 24, 0.9);
+      color: var(--text-main);
+      border: 1px solid rgba(197, 160, 89, 0.55);
+      padding: 5px 10px;
+      font-family: var(--font-serif);
+      font-size: 12px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .cn-btn:hover {
+      border-color: var(--gold-accent);
+      background: rgba(65, 52, 41, 0.95);
+      color: #fff;
+    }
+
+    .cn-btn.active {
+      background: var(--cinnabar);
+      border-color: #f0a095;
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 0 10px rgba(184, 59, 43, 0.5);
+    }
+
+    /* 左右卷軸面板 */
+    .side-scroll {
+      position: fixed;
+      top: 62px;
+      bottom: 72px;
+      width: 278px;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    #left-scroll {
+      left: 14px;
+    }
+
+    #right-scroll {
+      right: 14px;
+    }
+
+    /* 卷軸軸頭裝飾 */
+    .scroll-rod {
+      background: linear-gradient(90deg, #3b2618 0%, #6e482c 50%, #3b2618 100%);
+      border-bottom: 1px solid var(--paper-border);
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--gold-accent);
+    }
+
+    .scroll-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--paper-border) transparent;
+    }
+
+    .scroll-body::-webkit-scrollbar {
+      width: 4px;
+    }
+    .scroll-body::-webkit-scrollbar-thumb {
+      background: var(--paper-border);
+    }
+
+    /* 卷軸收合切換耳標 */
+    .scroll-tab {
+      position: fixed;
+      top: 72px;
+      z-index: 16;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      padding: 10px 6px;
+      font-size: 12px;
+      letter-spacing: 3px;
+      background: var(--paper-bg);
+      border: 1px solid var(--paper-border);
+      color: var(--gold-accent);
+      cursor: pointer;
+      border-radius: 3px;
+      display: none;
+    }
+
+    #tab-left { left: 8px; }
+    #tab-right { right: 8px; }
+
+    #left-scroll.collapsed {
+      transform: translateX(calc(-100% - 24px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #right-scroll.collapsed {
+      transform: translateX(calc(100% + 24px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* 區塊小標 */
+    .section-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--gold-accent);
+      margin: 10px 0 6px;
+      padding-bottom: 3px;
+      border-bottom: 1px dashed rgba(197, 160, 89, 0.35);
+      letter-spacing: 1.5px;
+    }
+    .section-label:first-child { margin-top: 2px; }
+
+    /* 特效格網 */
+    .fx-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .fx-btn {
+      text-align: left;
+      padding: 6px 8px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .fx-tag {
+      font-size: 10px;
+      color: var(--gold-accent);
+      opacity: 0.85;
+    }
+
+    /* 滑桿控制項 */
+    .slider-row {
+      margin-bottom: 9px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 3px;
+      color: var(--text-main);
+    }
+
+    .slider-val {
+      color: var(--gold-accent);
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(197, 160, 89, 0.25);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: var(--gold-accent);
+      border: 2px solid #2b1d12;
+      cursor: pointer;
+    }
+
+    /* 主題按鈕列 */
+    .theme-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      margin-bottom: 8px;
+    }
+
+    /* 音訊來源區 */
+    .source-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .yt-box {
+      display: flex;
+      gap: 5px;
+      margin-top: 6px;
+    }
+
+    .cn-input {
+      flex: 1;
+      min-width: 0;
+      background: rgba(12, 10, 9, 0.85);
+      border: 1px solid rgba(197, 160, 89, 0.45);
+      color: var(--text-main);
+      padding: 5px 8px;
+      font-family: var(--font-serif);
+      font-size: 12px;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .cn-input:focus {
+      border-color: var(--gold-accent);
+    }
+
+    #yt-embed-wrap {
+      margin-top: 7px;
+      border: 1px solid rgba(197, 160, 89, 0.4);
+      border-radius: 2px;
+      overflow: hidden;
+      display: none;
+      aspect-ratio: 16 / 9;
+      background: #000;
+    }
+
+    #yt-embed-wrap iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    #status-banner {
+      margin-top: 7px;
+      padding: 6px 8px;
+      font-size: 11px;
+      line-height: 1.45;
+      background: rgba(184, 59, 43, 0.14);
+      border-left: 2px solid var(--cinnabar);
+      color: #e6dac8;
+    }
+
+    /* 底部琴台與 32 頻段 */
+    #bottom-guqin {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 18;
+      width: min(760px, calc(100vw - 24px));
+      padding: 7px 14px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #spectrum-canvas {
+      flex: 1;
+      height: 36px;
+      display: block;
+    }
+
+    .perf-badge {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      text-align: right;
+      line-height: 1.3;
+    }
+
+    /* 純視覺模式恢復印章 */
+    #restore-zen-btn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 50;
+      display: none;
+      background: rgba(184, 59, 43, 0.88);
+      color: #fff8ee;
+      border: 1px solid var(--gold-accent);
+      padding: 7px 14px;
+      font-family: var(--font-serif);
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      border-radius: 3px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    }
+
+    body.zen-mode #top-plaque,
+    body.zen-mode #left-scroll,
+    body.zen-mode #right-scroll,
+    body.zen-mode #bottom-guqin,
+    body.zen-mode .scroll-tab {
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+
+    body.zen-mode #restore-zen-btn {
+      display: block;
+    }
+
+    /* 手機與窄螢幕自適應 (含 390x844) */
+    @media (max-width: 900px) {
+      .side-scroll {
+        width: calc(100vw - 24px);
+        max-width: 350px;
+        top: 56px;
+        bottom: 68px;
+      }
+      #left-scroll { left: 12px; }
+      #right-scroll { right: 12px; }
+      .plaque-title h1 { font-size: 14px; letter-spacing: 1.5px; }
+      .cn-btn { padding: 5px 8px; font-size: 11px; }
+      #bottom-guqin { padding: 6px 10px; gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- 純視覺模式返回鈕 -->
+  <button id="restore-zen-btn" title="按 ESC 或點擊返回介面">【 顯現卷軸 】</button>
+
+  <!-- 頂部牌匾 -->
+  <header id="top-plaque" class="scroll-panel">
+    <div class="plaque-title">
+      <span class="seal-stamp">雅樂</span>
+      <h1>音律雅集 V4</h1>
+    </div>
+    <div class="plaque-actions">
+      <button id="toggle-left-btn" class="cn-btn active" title="收合/展開左側卷軸">幻境／音律</button>
+      <button id="toggle-right-btn" class="cn-btn active" title="收合/展開右側卷軸">丹青／參數</button>
+      <button id="zen-btn" class="cn-btn" title="隱藏所有面板">純視覺</button>
+      <button id="fullscreen-btn" class="cn-btn">全螢幕</button>
+      <button id="screenshot-btn" class="cn-btn">留影 PNG</button>
+    </div>
+  </header>
+
+  <!-- 收合耳標 -->
+  <button id="tab-left" class="scroll-tab">展開音律</button>
+  <button id="tab-right" class="scroll-tab">展開丹青</button>
+
+  <!-- 左側卷軸：12 種特效與五種音訊來源 -->
+  <aside id="left-scroll" class="side-scroll scroll-panel">
+    <div class="scroll-rod">
+      <span>壹・音律與幻境</span>
+      <button id="close-left" class="cn-btn" style="padding:2px 6px;font-size:11px;">收卷</button>
+    </div>
+    <div class="scroll-body">
+      <div class="section-label">❖ 音源擇選（支援拖放音檔）</div>
+      <div class="source-grid">
+        <button id="btn-play-pause" class="cn-btn active">暫停 / 播放</button>
+        <button id="btn-synth" class="cn-btn active">原創示範音樂</button>
+        <button id="btn-upload" class="cn-btn">上傳音訊檔</button>
+        <button id="btn-mic" class="cn-btn">麥克風收音</button>
+      </div>
+      <input type="file" id="audio-file-input" accept=".mp3,.wav,.m4a,.ogg,audio/*" style="display:none" />
+
+      <div class="yt-box">
+        <input type="text" id="yt-url-input" class="cn-input" placeholder="貼上 YouTube 網址或影片 ID" />
+        <button id="btn-yt-load" class="cn-btn">嵌入</button>
+      </div>
+      <div style="margin-top:6px;display:flex;gap:6px;">
+        <button id="btn-tab-audio" class="cn-btn" style="width:100%;">分享分頁音訊（擷取 YouTube 音軌）</button>
+      </div>
+      <div id="yt-embed-wrap"></div>
+      <div id="status-banner">目前模式：原創中式五聲電子合成樂（即時驅動三頻）</div>
+
+      <div class="section-label">❖ V4 新韻六境</div>
+      <div class="fx-grid" id="fx-v4-grid">
+        <button class="cn-btn fx-btn active" data-fx="laser_tunnel"><span>雷射隧道</span><span class="fx-tag">宮</span></button>
+        <button class="cn-btn fx-btn" data-fx="aurora_ribbon"><span>極光絲帶</span><span class="fx-tag">商</span></button>
+        <button class="cn-btn fx-btn" data-fx="neon_wave"><span>霓虹波形</span><span class="fx-tag">角</span></button>
+        <button class="cn-btn fx-btn" data-fx="particle_galaxy"><span>粒子星河</span><span class="fx-tag">徵</span></button>
+        <button class="cn-btn fx-btn" data-fx="fiber_optics"><span>光纖絲線</span><span class="fx-tag">羽</span></button>
+        <button class="cn-btn fx-btn" data-fx="circular_spectrum"><span>環形頻譜</span><span class="fx-tag">律</span></button>
+      </div>
+
+      <div class="section-label">❖ 經典六象</div>
+      <div class="fx-grid" id="fx-classic-grid">
+        <button class="cn-btn fx-btn" data-fx="classic_sphere"><span>聲波球體</span><span class="fx-tag">乾</span></button>
+        <button class="cn-btn fx-btn" data-fx="classic_vortex"><span>能量漩渦</span><span class="fx-tag">巽</span></button>
+        <button class="cn-btn fx-btn" data-fx="classic_fountain"><span>音律噴泉</span><span class="fx-tag">坎</span></button>
+        <button class="cn-btn fx-btn" data-fx="classic_cube"><span>頻譜矩陣</span><span class="fx-tag">艮</span></button>
+        <button class="cn-btn fx-btn" data-fx="classic_dna"><span>雙螺旋鏈</span><span class="fx-tag">離</span></button>
+        <button class="cn-btn fx-btn" data-fx="classic_starfield"><span>星際穿越</span><span class="fx-tag">兌</span></button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 右側卷軸：丹青色彩與畫境參數 -->
+  <aside id="right-scroll" class="side-scroll scroll-panel">
+    <div class="scroll-rod">
+      <span>貳・丹青與律動</span>
+      <button id="close-right" class="cn-btn" style="padding:2px 6px;font-size:11px;">收卷</button>
+    </div>
+    <div class="scroll-body">
+      <div class="section-label">❖ 丹青色韻主題</div>
+      <div class="theme-grid">
+        <button class="cn-btn theme-btn active" data-theme="candy">糖果</button>
+        <button class="cn-btn theme-btn" data-theme="neon">霓虹</button>
+        <button class="cn-btn theme-btn" data-theme="ocean">海洋</button>
+        <button class="cn-btn theme-btn" data-theme="aurora">極光</button>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>自訂色相 Hue</span>
+          <span class="slider-val" id="val-hue">28°</span>
+        </div>
+        <input type="range" id="ctrl-hue" min="0" max="360" value="28" />
+      </div>
+
+      <div class="section-label">❖ 畫境與光影微調</div>
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>畫面亮度（防過曝上限）</span>
+          <span class="slider-val" id="val-brightness">70%</span>
+        </div>
+        <input type="range" id="ctrl-brightness" min="20" max="130" value="70" />
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>星塵粒子數量</span>
+          <span class="slider-val" id="val-particles">2500</span>
+        </div>
+        <input type="range" id="ctrl-particles" min="500" max="5000" step="100" value="2500" />
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>音樂律動強度</span>
+          <span class="slider-val" id="val-reactivity">1.20x</span>
+        </div>
+        <input type="range" id="ctrl-reactivity" min="0.2" max="2.5" step="0.05" value="1.2" />
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>音樂線條長度</span>
+          <span class="slider-val" id="val-line-len">1.00x</span>
+        </div>
+        <input type="range" id="ctrl-line-len" min="0.4" max="2.2" step="0.05" value="1.0" />
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span>主音量</span>
+          <span class="slider-val" id="val-volume">80%</span>
+        </div>
+        <input type="range" id="ctrl-volume" min="0" max="100" value="80" />
+      </div>
+
+      <div class="section-label">❖ 光暈與渲染</div>
+      <div style="display:flex;gap:6px;">
+        <button id="btn-bloom" class="cn-btn active" style="flex:1;">柔光 Bloom：開啟</button>
+        <button id="btn-auto-rotate" class="cn-btn active" style="flex:1;">自動巡覽：開啟</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- 底部古琴頻譜台 -->
+  <footer id="bottom-guqin" class="scroll-panel">
+    <button id="bottom-play-btn" class="cn-btn active" style="padding:6px 12px;">❚❚ 暫停</button>
+    <canvas id="spectrum-canvas"></canvas>
+    <div class="perf-badge" id="perf-info">
+      <div id="tier-label">桌機雅境</div>
+      <div id="fps-label">60 FPS</div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+    // =========================================================
+    // 1. 裝置效能三級偵測
+    // =========================================================
+    function detectDeviceTier() {
+      const w = window.innerWidth;
+      const isMobileUA = /Android|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isTabletUA = /iPad|Tablet/i.test(navigator.userAgent);
+      if (w <= 600 || isMobileUA) {
+        return {
+          name: '手機輕境',
+          targetFPS: 30,
+          maxDPR: 1.25,
+          defaultParticles: 1100,
+          defaultBloom: false
+        };
+      } else if (w <= 1024 || isTabletUA) {
+        return {
+          name: '平板清境',
+          targetFPS: 45,
+          maxDPR: 1.5,
+          defaultParticles: 1800,
+          defaultBloom: true
+        };
+      }
+      return {
+        name: '桌機雅境',
+        targetFPS: 60,
+        maxDPR: 2.0,
+        defaultParticles: 2500,
+        defaultBloom: true
+      };
+    }
+
+    const DEVICE_TIER = detectDeviceTier();
+
+    // =========================================================
+    // 2. Web Audio API 真實音訊分析引擎 (AudioEngine)
+    // =========================================================
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.analyser = null;
+        this.masterGain = null;
+        this.freqData = null;
+
+        this.sourceMode = 'synth'; // 'synth' | 'file' | 'mic' | 'youtube_silent' | 'tab_audio'
+        this.isPlaying = true;
+        this.volume = 0.8;
+
+        this.bass = 0;
+        this.mid = 0;
+        this.treble = 0;
+        this.bands32 = new Float32Array(32);
+
+        // 檔案播放器
+        this.audioEl = new Audio();
+        this.audioEl.loop = true;
+        this.audioEl.crossOrigin = 'anonymous';
+        this.mediaElSource = null;
+
+        // 麥克風 / 分頁串流
+        this.activeStream = null;
+        this.streamSource = null;
+
+        // 內建合成器
+        this.synthTimer = null;
+        this.synthStep = 0;
+      }
+
+      ensureContext() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+          this.analyser = this.ctx.createAnalyser();
+          this.analyser.fftSize = 1024;
+          this.analyser.smoothingTimeConstant = 0.82;
+          this.freqData = new Uint8Array(this.analyser.frequencyBinCount);
+
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = this.volume;
+          this.masterGain.connect(this.analyser);
+          this.analyser.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setVolume(val01) {
+        this.volume = val01;
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setTargetAtTime(val01, this.ctx.currentTime, 0.02);
+        }
+      }
+
+      stopCurrentInput() {
+        if (this.synthTimer) {
+          clearInterval(this.synthTimer);
+          this.synthTimer = null;
+        }
+        if (!this.audioEl.paused) {
+          this.audioEl.pause();
+        }
+        if (this.activeStream) {
+          this.activeStream.getTracks().forEach(t => t.stop());
+          this.activeStream = null;
+        }
+        if (this.streamSource) {
+          try { this.streamSource.disconnect(); } catch (e) {}
+          this.streamSource = null;
+        }
+        // 恢復 analyser 連接到喇叭 (若之前為麥克風斷開)
+        if (this.analyser && this.ctx) {
+          try {
+            this.analyser.disconnect();
+            this.analyser.connect(this.ctx.destination);
+          } catch (e) {}
+        }
+      }
+
+      startSynth() {
+        this.ensureContext();
+        this.stopCurrentInput();
+        this.sourceMode = 'synth';
+        this.isPlaying = true;
+        this.synthStep = 0;
+
+        // 中式五聲音階 (宮商角徵羽 C4, D4, E4, G4, A4, C5, D5, E5)
+        const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25];
+        const bassNotes = [65.41, 65.41, 82.41, 98.00, 65.41, 73.42, 98.00, 110.00];
+
+        const triggerStep = () => {
+          if (!this.isPlaying || this.sourceMode !== 'synth') return;
+          if (this.ctx.state === 'suspended') this.ctx.resume();
+
+          const now = this.ctx.currentTime;
+          const step = this.synthStep % 16;
+
+          // 1. 鼓點 Kick (低頻)
+          if (step % 4 === 0) {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(135, now);
+            osc.frequency.exponentialRampToValueAtTime(38, now + 0.16);
+            gain.gain.setValueAtTime(0.65, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+            osc.connect(gain);
+            gain.connect(this.masterGain);
+            osc.start(now);
+            osc.stop(now + 0.26);
+          }
+
+          // 2. 渾厚 Bassline (低中頻)
+          if (step % 2 === 0) {
+            const bOsc = this.ctx.createOscillator();
+            const bFilter = this.ctx.createBiquadFilter();
+            const bGain = this.ctx.createGain();
+            bOsc.type = 'triangle';
+            bOsc.frequency.setValueAtTime(bassNotes[(step / 2) % bassNotes.length], now);
+            bFilter.type = 'lowpass';
+            bFilter.frequency.setValueAtTime(360, now);
+            bGain.gain.setValueAtTime(0.32, now);
+            bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+            bOsc.connect(bFilter);
+            bFilter.connect(bGain);
+            bGain.connect(this.masterGain);
+            bOsc.start(now);
+            bOsc.stop(now + 0.23);
+          }
+
+          // 3. 古箏/琶音旋律 (中頻)
+          const noteFreq = scale[(step * 3 + Math.floor(this.synthStep / 16)) % scale.length];
+          const mOsc = this.ctx.createOscillator();
+          const mGain = this.ctx.createGain();
+          mOsc.type = 'sine';
+          mOsc.frequency.setValueAtTime(noteFreq, now);
+          mGain.gain.setValueAtTime(0.18, now);
+          mGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          mOsc.connect(mGain);
+          mGain.connect(this.masterGain);
+          mOsc.start(now);
+          mOsc.stop(now + 0.29);
+
+          // 4. Hi-Hat 清脆高頻
+          if (step % 2 === 1 || step % 4 === 2) {
+            const bufferSize = this.ctx.sampleRate * 0.04;
+            const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            const hp = this.ctx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 6500;
+            const hGain = this.ctx.createGain();
+            hGain.gain.setValueAtTime(0.12, now);
+            hGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+            noise.connect(hp);
+            hp.connect(hGain);
+            hGain.connect(this.masterGain);
+            noise.start(now);
+          }
+
+          this.synthStep++;
+        };
+
+        triggerStep();
+        this.synthTimer = setInterval(triggerStep, 145);
+      }
+
+      loadAudioFile(file) {
+        if (!file) return;
+        this.ensureContext();
+        this.stopCurrentInput();
+        this.sourceMode = 'file';
+
+        const url = URL.createObjectURL(file);
+        this.audioEl.src = url;
+        if (!this.mediaElSource) {
+          this.mediaElSource = this.ctx.createMediaElementSource(this.audioEl);
+          this.mediaElSource.connect(this.masterGain);
+        }
+        this.audioEl.play();
+        this.isPlaying = true;
+      }
+
+      async startMicrophone() {
+        this.ensureContext();
+        this.stopCurrentInput();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        this.activeStream = stream;
+        this.sourceMode = 'mic';
+        this.isPlaying = true;
+
+        // 斷開喇叭輸出防止回授嘯叫
+        this.analyser.disconnect();
+        this.streamSource = this.ctx.createMediaStreamSource(stream);
+        this.streamSource.connect(this.analyser);
+      }
+
+      setYouTubeEmbedMode() {
+        this.stopCurrentInput();
+        this.sourceMode = 'youtube_silent';
+        this.isPlaying = true;
+        this.resetMetrics();
+      }
+
+      async startTabAudioCapture() {
+        this.ensureContext();
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+        // 立即停止視訊軌節省效能
+        stream.getVideoTracks().forEach(track => track.stop());
+
+        const audioTracks = stream.getAudioTracks();
+        if (!audioTracks || audioTracks.length === 0) {
+          stream.getTracks().forEach(t => t.stop());
+          throw new Error('未偵測到分頁音訊軌，請確認勾選「同時分享分頁音訊」。');
+        }
+
+        this.stopCurrentInput();
+        this.activeStream = stream;
+        this.sourceMode = 'tab_audio';
+        this.isPlaying = true;
+
+        this.streamSource = this.ctx.createMediaStreamSource(stream);
+        this.streamSource.connect(this.masterGain);
+
+        audioTracks[0].onended = () => {
+          if (this.sourceMode === 'tab_audio') {
+            this.setYouTubeEmbedMode();
+            updateStatus('分頁音訊分享已結束；頻譜已歸零，可重新點擊分享分頁音訊。');
+          }
+        };
+      }
+
+      togglePlayPause() {
+        if (!this.ctx) {
+          this.startSynth();
+          return true;
+        }
+        this.isPlaying = !this.isPlaying;
+        if (this.sourceMode === 'file') {
+          if (this.isPlaying) this.audioEl.play();
+          else this.audioEl.pause();
+        }
+        return this.isPlaying;
+      }
+
+      resetMetrics() {
+        this.bass = 0;
+        this.mid = 0;
+        this.treble = 0;
+        this.bands32.fill(0);
+      }
+
+      update() {
+        // 嚴格真實性規範：在尚未成功取得分頁音訊軌前，YouTube 模式所有頻段強制為 0
+        if (this.sourceMode === 'youtube_silent' || !this.analyser || !this.isPlaying) {
+          this.resetMetrics();
+          return;
+        }
+
+        this.analyser.getByteFrequencyData(this.freqData);
+        const binCount = this.freqData.length; // 512
+
+        // 低音 (20Hz - 250Hz -> bins 1..12)
+        let bassSum = 0;
+        for (let i = 1; i <= 12; i++) bassSum += this.freqData[i];
+        this.bass = (bassSum / (12 * 255));
+
+        // 中音 (250Hz - 2500Hz -> bins 13..115)
+        let midSum = 0;
+        for (let i = 13; i <= 115; i++) midSum += this.freqData[i];
+        this.mid = (midSum / (103 * 255));
+
+        // 高音 (2500Hz - 12000Hz -> bins 116..340)
+        let trebleSum = 0;
+        for (let i = 116; i <= 340; i++) trebleSum += this.freqData[i];
+        this.treble = (trebleSum / (225 * 255));
+
+        // 32 頻段對數分佈
+        for (let b = 0; b < 32; b++) {
+          const start = Math.floor(Math.pow(b / 32, 1.65) * 320);
+          const end = Math.max(start + 1, Math.floor(Math.pow((b + 1) / 32, 1.65) * 320));
+          let sum = 0;
+          for (let k = start; k < end && k < binCount; k++) {
+            sum += this.freqData[k];
+          }
+          this.bands32[b] = sum / ((end - start) * 255);
+        }
+      }
+    }
+
+    // =========================================================
+    // 3. 色彩主題與防過曝 HSL 計算 (L <= 0.58)
+    // =========================================================
+    const THEMES = {
+      candy: { baseHue: 345, spread: 65, sat: 0.82 },  // 硃砂海棠紅金
+      neon:  { baseHue: 28,  spread: 140, sat: 0.88 }, // 鎏金青瓷霓光
+      ocean: { baseHue: 175, spread: 45, sat: 0.78 },  // 碧玉石青水墨
+      aurora:{ baseHue: 135, spread: 95, sat: 0.80 }   // 翡翠松煙極光
+    };
+
+    const appState = {
+      fx: 'laser_tunnel',
+      theme: 'candy',
+      hue: 28,
+      brightness: 0.70,   // 預設 70%
+      particleCount: DEVICE_TIER.defaultParticles,
+      reactivity: 1.2,
+      lineLength: 1.0,
+      bloomEnabled: DEVICE_TIER.defaultBloom,
+      autoRotate: true
+    };
+
+    function getSafeColor(offsetRatio = 0, lightnessBoost = 0) {
+      const t = THEMES[appState.theme];
+      const h = ((appState.hue + offsetRatio * t.spread) % 360 + 360) % 360 / 360;
+      // 嚴格限制 HSL 明度上限 L <= 0.58 防止過曝白化
+      const rawL = (0.36 + lightnessBoost) * (0.55 + appState.brightness * 0.45);
+      const clampedL = Math.min(0.58, Math.max(0.08, rawL));
+      const c = new THREE.Color();
+      c.setHSL(h, t.sat, clampedL);
+      return c;
+    }
+
+    // =========================================================
+    // 4. Three.js 0.187.0 場景與後處理管線
+    // =========================================================
+    const container = document.getElementById('canvas-container');
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      powerPreference: 'high-performance',
+      preserveDrawingBuffer: true // 確保 PNG 截圖不會拍出全黑畫面
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, DEVICE_TIER.maxDPR));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 0.95;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0b0908, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 400);
+    camera.position.set(0, 6, 26);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 5;
+    controls.maxDistance = 90;
+    controls.autoRotate = appState.autoRotate;
+    controls.autoRotateSpeed = 0.8;
+
+    // EffectComposer + UnrealBloomPass + OutputPass
+    const composer = new EffectComposer(renderer);
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.42, // 保守強度
+      0.55, // 半徑
+      0.68  // 閾值
+    );
+    bloomPass.enabled = appState.bloomEnabled;
+    composer.addPass(bloomPass);
+
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
+    // 情境損失保護
+    renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      updateStatus('WebGL 繪圖內容暫時中斷，正在嘗試自動恢復...');
+    }, false);
+
+    renderer.domElement.addEventListener('webglcontextrestored', () => {
+      buildEffect(appState.fx);
+      updateStatus('WebGL 繪圖內容已成功恢復。');
+    }, false);
+
+    // =========================================================
+    // 5. 12 種 3D 特效系統（含完整 GPU 資源釋放）
+    // =========================================================
+    let currentEffectGroup = new THREE.Group();
+    scene.add(currentEffectGroup);
+    let currentEffectUpdater = null;
+
+    function disposeObject3D(root) {
+      root.traverse((obj) => {
+        if (obj.geometry) {
+          obj.geometry.dispose();
+        }
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach((m) => m.dispose());
+          } else {
+            obj.material.dispose();
+          }
+        }
+      });
+      while (root.children.length > 0) {
+        root.remove(root.children[0]);
+      }
+    }
+
+    function buildEffect(fxName) {
+      disposeObject3D(currentEffectGroup);
+      currentEffectUpdater = null;
+
+      // 依特效設定合適鏡頭視角
+      controls.target.set(0, 0, 0);
+      if (fxName === 'laser_tunnel') {
+        camera.position.set(0, 0, 22);
+      } else if (fxName === 'neon_wave') {
+        camera.position.set(0, 9, 24);
+      } else if (fxName === 'circular_spectrum') {
+        camera.position.set(0, 0, 26);
+      } else if (fxName === 'fiber_optics') {
+        camera.position.set(0, 8, 24);
+        controls.target.set(0, 4, 0);
+      } else {
+        camera.position.set(0, 6, 26);
+      }
+
+      const count = appState.particleCount;
+
+      // -------------------------------------------------------
+      // 1. 雷射隧道 (laser_tunnel)
+      // -------------------------------------------------------
+      if (fxName === 'laser_tunnel') {
+        const ringCount = 22;
+        const rings = [];
+        const ringGeo = new THREE.RingGeometry(4.6, 4.78, 8);
+        for (let i = 0; i < ringCount; i++) {
+          const mat = new THREE.MeshBasicMaterial({
+            color: getSafeColor(i / ringCount, 0.14),
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.78
+          });
+          const mesh = new THREE.Mesh(ringGeo, mat);
+          mesh.position.z = -i * 3.5;
+          mesh.rotation.z = i * 0.18;
+          currentEffectGroup.add(mesh);
+          rings.push(mesh);
+        }
+
+        // 縱向雷射光束
+        const beamCount = 16;
+        const beamPositions = new Float32Array(beamCount * 2 * 3);
+        const beamColors = new Float32Array(beamCount * 2 * 3);
+        for (let i = 0; i < beamCount; i++) {
+          const ang = (i / beamCount) * Math.PI * 2;
+          const r = 4.7;
+          const x = Math.cos(ang) * r;
+          const y = Math.sin(ang) * r;
+          beamPositions[i * 6 + 0] = x;
+          beamPositions[i * 6 + 1] = y;
+          beamPositions[i * 6 + 2] = 12;
+          beamPositions[i * 6 + 3] = x;
+          beamPositions[i * 6 + 4] = y;
+          beamPositions[i * 6 + 5] = -75;
+
+          const c = getSafeColor(i / beamCount, 0.1);
+          beamColors[i * 6 + 0] = c.r; beamColors[i * 6 + 1] = c.g; beamColors[i * 6 + 2] = c.b;
+          beamColors[i * 6 + 3] = c.r * 0.2; beamColors[i * 6 + 4] = c.g * 0.2; beamColors[i * 6 + 5] = c.b * 0.2;
+        }
+        const beamGeo = new THREE.BufferGeometry();
+        beamGeo.setAttribute('position', new THREE.BufferAttribute(beamPositions, 3));
+        beamGeo.setAttribute('color', new THREE.BufferAttribute(beamColors, 3));
+        const beamMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.65 });
+        const beams = new THREE.LineSegments(beamGeo, beamMat);
+        currentEffectGroup.add(beams);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const speed = 14 + audio.bass * 38 * react;
+          const pulse = 1 + audio.bass * 0.35 * react;
+          beams.rotation.z += dt * (0.25 + audio.mid * 1.4 * react);
+
+          rings.forEach((ring, idx) => {
+            ring.position.z += dt * speed;
+            if (ring.position.z > 12) {
+              ring.position.z -= ringCount * 3.5;
+            }
+            const band = audio.bands32[idx % 32];
+            const s = pulse * (1 + band * 0.25 * react);
+            ring.scale.set(s, s, 1);
+            ring.rotation.z += dt * (0.3 + audio.mid * 1.5 * react) * (idx % 2 === 0 ? 1 : -1);
+            ring.material.color.copy(getSafeColor(idx / ringCount + time * 0.05, band * 0.18));
+          });
+        };
+      }
+
+      // -------------------------------------------------------
+      // 2. 極光絲帶 (aurora_ribbon) — 7 層上下羽化漸隱
+      // -------------------------------------------------------
+      else if (fxName === 'aurora_ribbon') {
+        const layers = 7;
+        const segX = 96;
+        const segY = 8;
+        const ribbons = [];
+
+        for (let l = 0; l < layers; l++) {
+          const geo = new THREE.PlaneGeometry(36, 4.8 * appState.lineLength, segX, segY);
+          const posAttr = geo.attributes.position;
+          const colors = new Float32Array(posAttr.count * 3);
+          geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+          const mat = new THREE.MeshBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.42,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+          });
+
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.set(0, (l - 3) * 0.9, -l * 2.4 + 4);
+          mesh.rotation.x = -0.18;
+          currentEffectGroup.add(mesh);
+          ribbons.push({ mesh, geo, layerIdx: l });
+        }
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          ribbons.forEach(({ mesh, geo, layerIdx }) => {
+            const pos = geo.attributes.position;
+            const col = geo.attributes.color;
+            const baseCol = getSafeColor(layerIdx / layers + time * 0.03, 0.12);
+
+            for (let i = 0; i < pos.count; i++) {
+              const x = pos.getX(i);
+              const normX = (x + 18) / 36; // 0..1
+              const bandIdx = Math.min(31, Math.floor(normX * 32));
+              const bandVal = audio.bands32[bandIdx];
+
+              // 上下邊緣羽化漸隱 (row 0 與 row segY 衰減為 0)
+              const row = Math.floor(i / (segX + 1));
+              const vRatio = row / segY; // 0..1
+              const feather = Math.sin(vRatio * Math.PI);
+
+              const waveMid = Math.sin(x * 0.22 + time * 1.6 + layerIdx * 0.7) * (1.2 + audio.mid * 4.5 * react);
+              const waveTreble = Math.cos(x * 0.85 - time * 3.8 + layerIdx) * (0.15 + audio.treble * 1.4 * react);
+              const zOffset = waveMid + waveTreble + bandVal * 2.2 * react;
+              pos.setZ(i, zOffset);
+
+              const fade = feather * (0.35 + bandVal * 0.65);
+              col.setXYZ(i, baseCol.r * fade, baseCol.g * fade, baseCol.b * fade);
+            }
+            pos.needsUpdate = true;
+            col.needsUpdate = true;
+          });
+        };
+      }
+
+      // -------------------------------------------------------
+      // 3. 霓虹波形 (neon_wave) — 16 層前後深度頻譜波形 + 星空
+      // -------------------------------------------------------
+      else if (fxName === 'neon_wave') {
+        const waveLayers = 16;
+        const pointsPerLine = 96;
+        const lines = [];
+
+        for (let l = 0; l < waveLayers; l++) {
+          const geo = new THREE.BufferGeometry();
+          const positions = new Float32Array(pointsPerLine * 3);
+          for (let p = 0; p < pointsPerLine; p++) {
+            const x = ((p / (pointsPerLine - 1)) - 0.5) * 34;
+            positions[p * 3] = x;
+            positions[p * 3 + 1] = 0;
+            positions[p * 3 + 2] = 0;
+          }
+          geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          const mat = new THREE.LineBasicMaterial({
+            color: getSafeColor(l / waveLayers, 0.16),
+            transparent: true,
+            opacity: 0.85 - (l / waveLayers) * 0.45
+          });
+          const line = new THREE.Line(geo, mat);
+          line.position.z = 8 - l * 1.8;
+          currentEffectGroup.add(line);
+          lines.push({ line, geo, idx: l });
+        }
+
+        // 黑色星空背景點
+        const starCount = Math.min(1200, count);
+        const starPos = new Float32Array(starCount * 3);
+        for (let i = 0; i < starCount; i++) {
+          starPos[i * 3] = (Math.random() - 0.5) * 90;
+          starPos[i * 3 + 1] = (Math.random() - 0.3) * 45;
+          starPos[i * 3 + 2] = (Math.random() - 0.5) * 90;
+        }
+        const starGeo = new THREE.BufferGeometry();
+        starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+        const starMat = new THREE.PointsMaterial({
+          color: getSafeColor(0.2, 0.1),
+          size: 0.22,
+          transparent: true,
+          opacity: 0.7
+        });
+        currentEffectGroup.add(new THREE.Points(starGeo, starMat));
+
+        const history = Array.from({ length: waveLayers }, () => new Float32Array(32));
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const lenScale = appState.lineLength;
+          // 推進波形歷史
+          history.pop();
+          history.unshift(Float32Array.from(audio.bands32));
+
+          lines.forEach(({ line, geo, idx }) => {
+            const pos = geo.attributes.position;
+            const rowData = history[idx];
+            line.material.color.copy(getSafeColor(idx / waveLayers + time * 0.04, 0.15));
+
+            for (let p = 0; p < pointsPerLine; p++) {
+              const norm = p / (pointsPerLine - 1);
+              const sym = Math.abs(norm - 0.5) * 2; // 0..1
+              const bandIdx = Math.min(31, Math.floor(sym * 31));
+              const amp = rowData[bandIdx] * 7.5 * react * lenScale;
+              const ripple = Math.sin(norm * 18 + time * 3 - idx * 0.5) * (0.15 + audio.treble * 0.6);
+              pos.setY(p, amp + ripple);
+            }
+            pos.needsUpdate = true;
+          });
+        };
+      }
+
+      // -------------------------------------------------------
+      // 4. 粒子星河 (particle_galaxy) — 單一 Draw Call Custom Shader
+      // -------------------------------------------------------
+      else if (fxName === 'particle_galaxy') {
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const randoms = new Float32Array(count);
+
+        const branches = 5;
+        const maxRadius = 16;
+
+        for (let i = 0; i < count; i++) {
+          const r = Math.pow(Math.random(), 0.75) * maxRadius;
+          const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+          const spinAngle = r * 0.42;
+          const spread = (Math.random() - 0.5) * (0.45 + r * 0.08);
+
+          positions[i * 3] = Math.cos(branchAngle + spinAngle) * r + spread;
+          positions[i * 3 + 1] = (Math.random() - 0.5) * (1.8 - r * 0.07);
+          positions[i * 3 + 2] = Math.sin(branchAngle + spinAngle) * r + (Math.random() - 0.5) * 0.7;
+
+          const c = getSafeColor(r / maxRadius, 0.14);
+          colors[i * 3] = c.r;
+          colors[i * 3 + 1] = c.g;
+          colors[i * 3 + 2] = c.b;
+          randoms[i] = Math.random();
+        }
+
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        geo.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+
+        const shaderMat = new THREE.ShaderMaterial({
+          uniforms: {
+            uTime: { value: 0 },
+            uBass: { value: 0 },
+            uTreble: { value: 0 },
+            uPixelRatio: { value: Math.min(window.devicePixelRatio || 1, DEVICE_TIER.maxDPR) }
+          },
+          vertexShader: `
+            attribute vec3 color;
+            attribute float aRandom;
+            varying vec3 vColor;
+            varying float vTwinkle;
+            uniform float uTime;
+            uniform float uBass;
+            uniform float uTreble;
+            uniform float uPixelRatio;
+            void main() {
+              vColor = color;
+              vec3 pos = position;
+              float dist = length(pos.xz);
+              float expand = 1.0 + uBass * 0.35 * sin(dist * 0.5 - uTime * 3.0);
+              pos.xz *= expand;
+              pos.y += sin(uTime * 2.5 + aRandom * 6.28) * (0.15 + uTreble * 0.8);
+
+              vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+              vTwinkle = 0.65 + 0.35 * sin(uTime * 6.0 + aRandom * 25.0) * (0.4 + uTreble * 1.4);
+              gl_PointSize = (18.0 + uBass * 14.0) * (0.5 + aRandom * 0.8) * uPixelRatio / -mvPosition.z;
+              gl_Position = projectionMatrix * mvPosition;
+            }
+          `,
+          fragmentShader: `
+            varying vec3 vColor;
+            varying float vTwinkle;
+            void main() {
+              float d = distance(gl_PointCoord, vec2(0.5));
+              if (d > 0.5) discard;
+              float alpha = smoothstep(0.5, 0.08, d) * vTwinkle;
+              gl_FragColor = vec4(vColor, alpha);
+            }
+          `,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        });
+
+        const points = new THREE.Points(geo, shaderMat);
+        currentEffectGroup.add(points);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          shaderMat.uniforms.uTime.value = time;
+          shaderMat.uniforms.uBass.value = audio.bass * react;
+          shaderMat.uniforms.uTreble.value = audio.treble * react;
+          points.rotation.y += dt * (0.18 + audio.mid * 1.35 * react);
+        };
+      }
+
+      // -------------------------------------------------------
+      // 5. 光纖絲線 (fiber_optics) — 單一 LineSegments 極低 Draw Calls
+      // -------------------------------------------------------
+      else if (fxName === 'fiber_optics') {
+        const strandCount = Math.min(360, Math.floor(count / 6));
+        const segsPerStrand = 12;
+        const totalSegments = strandCount * segsPerStrand;
+
+        const positions = new Float32Array(totalSegments * 2 * 3);
+        const colors = new Float32Array(totalSegments * 2 * 3);
+        const strandMeta = [];
+
+        for (let s = 0; s < strandCount; s++) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = Math.sqrt(Math.random()) * 11;
+          const baseX = Math.cos(angle) * radius;
+          const baseZ = Math.sin(angle) * radius;
+          const height = (6 + Math.random() * 8) * appState.lineLength;
+          const phase = Math.random() * Math.PI * 2;
+          strandMeta.push({ baseX, baseZ, height, phase });
+        }
+
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const mat = new THREE.LineBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.82
+        });
+
+        const lineSegments = new THREE.LineSegments(geo, mat);
+        currentEffectGroup.add(lineSegments);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          const col = geo.attributes.color;
+          let ptr = 0;
+
+          for (let s = 0; s < strandCount; s++) {
+            const { baseX, baseZ, height, phase } = strandMeta[s];
+            const band = audio.bands32[s % 32];
+            const cBase = getSafeColor(s / strandCount, 0.04);
+            const cTip = getSafeColor(s / strandCount + 0.25, 0.18);
+
+            let prevX = baseX;
+            let prevY = 0;
+            let prevZ = baseZ;
+
+            for (let k = 1; k <= segsPerStrand; k++) {
+              const t = k / segsPerStrand;
+              const bend = Math.pow(t, 1.7) * (1.2 + audio.mid * 4.5 * react);
+              const tipVib = (t > 0.65) ? Math.sin(time * 18 + phase * 5) * audio.treble * 1.3 * react * t : 0;
+
+              const nx = baseX + Math.sin(time * 1.4 + phase) * bend + tipVib;
+              const ny = t * (height + band * 3.5 * react);
+              const nz = baseZ + Math.cos(time * 1.2 + phase) * bend;
+
+              pos.setXYZ(ptr, prevX, prevY, prevZ);
+              col.setXYZ(ptr, cBase.r, cBase.g, cBase.b);
+              ptr++;
+
+              pos.setXYZ(ptr, nx, ny, nz);
+              const tipBoost = 0.5 + t * 0.5;
+              col.setXYZ(ptr, cTip.r * tipBoost, cTip.g * tipBoost, cTip.b * tipBoost);
+              ptr++;
+
+              prevX = nx;
+              prevY = ny;
+              prevZ = nz;
+            }
+          }
+          pos.needsUpdate = true;
+          col.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 6. 環形頻譜 (circular_spectrum) — 3 層中心鏤空同心細線
+      // -------------------------------------------------------
+      else if (fxName === 'circular_spectrum') {
+        const layers = [
+          { innerR: 3.4, rays: 96, baseLen: 2.4 },
+          { innerR: 6.4, rays: 128, baseLen: 3.2 },
+          { innerR: 9.8, rays: 160, baseLen: 4.0 }
+        ];
+        const ringObjs = [];
+
+        layers.forEach((cfg, lIdx) => {
+          const positions = new Float32Array(cfg.rays * 2 * 3);
+          const colors = new Float32Array(cfg.rays * 2 * 3);
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+          const mat = new THREE.LineBasicMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9
+          });
+          const lines = new THREE.LineSegments(geo, mat);
+          currentEffectGroup.add(lines);
+          ringObjs.push({ lines, geo, cfg, lIdx });
+        });
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const lenMult = appState.lineLength;
+          const bassPulse = 1 + audio.bass * 0.28 * react;
+
+          ringObjs.forEach(({ lines, geo, cfg, lIdx }) => {
+            const pos = geo.attributes.position;
+            const col = geo.attributes.color;
+            lines.rotation.z += dt * (0.15 + lIdx * 0.08) * (lIdx % 2 === 0 ? 1 : -1);
+
+            for (let i = 0; i < cfg.rays; i++) {
+              const angle = (i / cfg.rays) * Math.PI * 2;
+              const cosA = Math.cos(angle);
+              const sinA = Math.sin(angle);
+              const bandIdx = Math.floor((i / cfg.rays) * 32) % 32;
+              const bandVal = audio.bands32[bandIdx];
+
+              const r0 = cfg.innerR * bassPulse;
+              const r1 = r0 + (0.35 + bandVal * cfg.baseLen * 1.8 * react) * lenMult;
+
+              pos.setXYZ(i * 2, cosA * r0, sinA * r0, 0);
+              pos.setXYZ(i * 2 + 1, cosA * r1, sinA * r1, 0);
+
+              const c0 = getSafeColor(i / cfg.rays + lIdx * 0.2, 0.08);
+              const c1 = getSafeColor(i / cfg.rays + lIdx * 0.2 + 0.15, 0.18);
+              col.setXYZ(i * 2, c0.r, c0.g, c0.b);
+              col.setXYZ(i * 2 + 1, c1.r, c1.g, c1.b);
+            }
+            pos.needsUpdate = true;
+            col.needsUpdate = true;
+          });
+        };
+      }
+
+      // -------------------------------------------------------
+      // 7. 聲波球體 (classic_sphere)
+      // -------------------------------------------------------
+      else if (fxName === 'classic_sphere') {
+        const geo = new THREE.BufferGeometry();
+        const basePos = new Float32Array(count * 3);
+        const curPos = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const radius = 8.5;
+
+        for (let i = 0; i < count; i++) {
+          const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
+          const theta = Math.PI * (1 + Math.sqrt(5)) * i;
+          const x = radius * Math.sin(phi) * Math.cos(theta);
+          const y = radius * Math.cos(phi);
+          const z = radius * Math.sin(phi) * Math.sin(theta);
+          basePos[i * 3] = curPos[i * 3] = x;
+          basePos[i * 3 + 1] = curPos[i * 3 + 1] = y;
+          basePos[i * 3 + 2] = curPos[i * 3 + 2] = z;
+
+          const c = getSafeColor(phi / Math.PI, 0.14);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(curPos, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const mat = new THREE.PointsMaterial({ size: 0.22, vertexColors: true, transparent: true, opacity: 0.88 });
+        const pts = new THREE.Points(geo, mat);
+        currentEffectGroup.add(pts);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          pts.rotation.y += dt * (0.25 + audio.mid * 0.8);
+
+          for (let i = 0; i < count; i++) {
+            const bx = basePos[i * 3];
+            const by = basePos[i * 3 + 1];
+            const bz = basePos[i * 3 + 2];
+            const band = audio.bands32[i % 32];
+            const ripple = Math.sin(by * 0.9 + time * 4) * audio.treble * 1.4 * react;
+            const scale = 1 + audio.bass * 0.35 * react + band * 0.28 * react + ripple * 0.08;
+            pos.setXYZ(i, bx * scale, by * scale, bz * scale);
+          }
+          pos.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 8. 能量漩渦 (classic_vortex)
+      // -------------------------------------------------------
+      else if (fxName === 'classic_vortex') {
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const meta = [];
+
+        for (let i = 0; i < count; i++) {
+          const t = i / count;
+          const r = 1.5 + t * 14;
+          const ang = t * Math.PI * 18;
+          const y = (t - 0.5) * 14;
+          positions[i * 3] = Math.cos(ang) * r;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = Math.sin(ang) * r;
+          meta.push({ r, ang, baseY: y, t });
+
+          const c = getSafeColor(t, 0.14);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 0.24, vertexColors: true, transparent: true, opacity: 0.85 });
+        const pts = new THREE.Points(geo, mat);
+        currentEffectGroup.add(pts);
+
+        let spinAcc = 0;
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          spinAcc += dt * (1.2 + audio.mid * 5.0 * react);
+          const pos = geo.attributes.position;
+
+          for (let i = 0; i < count; i++) {
+            const m = meta[i];
+            const band = audio.bands32[i % 32];
+            const curAng = m.ang + spinAcc * (1.2 - m.t * 0.5);
+            const curR = m.r * (1 + audio.bass * 0.25 * react);
+            const curY = m.baseY + Math.sin(spinAcc + m.t * 8) * band * 2.5 * react;
+            pos.setXYZ(i, Math.cos(curAng) * curR, curY, Math.sin(curAng) * curR);
+          }
+          pos.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 9. 音律噴泉 (classic_fountain)
+      // -------------------------------------------------------
+      else if (fxName === 'classic_fountain') {
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const drops = [];
+
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = 2.5 + Math.random() * 6.5;
+          const phase = Math.random();
+          drops.push({ ang, spd, phase });
+          const c = getSafeColor(i / count, 0.15);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 0.24, vertexColors: true, transparent: true, opacity: 0.88 });
+        currentEffectGroup.add(new THREE.Points(geo, mat));
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          const boost = 1 + audio.bass * 1.45 * react;
+
+          for (let i = 0; i < count; i++) {
+            const d = drops[i];
+            d.phase = (d.phase + dt * (0.45 + audio.bass * 0.6)) % 1;
+            const t = d.phase;
+            const r = t * d.spd * 2.2;
+            const y = -6 + (4 * t * (1 - t)) * (9 * boost + audio.bands32[i % 32] * 5 * react);
+            pos.setXYZ(i, Math.cos(d.ang) * r, y, Math.sin(d.ang) * r);
+          }
+          pos.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 10. 頻譜矩陣 (classic_cube) — 3D 矩陣對應 32 頻段
+      // -------------------------------------------------------
+      else if (fxName === 'classic_cube') {
+        const gridSide = Math.max(8, Math.round(Math.cbrt(count)));
+        const total = gridSide * gridSide * gridSide;
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(total * 3);
+        const colors = new Float32Array(total * 3);
+        const spacing = 15 / gridSide;
+        const offset = ((gridSide - 1) * spacing) / 2;
+
+        let idx = 0;
+        for (let x = 0; x < gridSide; x++) {
+          for (let y = 0; y < gridSide; y++) {
+            for (let z = 0; z < gridSide; z++) {
+              positions[idx * 3] = x * spacing - offset;
+              positions[idx * 3 + 1] = y * spacing - offset;
+              positions[idx * 3 + 2] = z * spacing - offset;
+              const c = getSafeColor((x + z) / (gridSide * 2), 0.14);
+              colors[idx * 3] = c.r; colors[idx * 3 + 1] = c.g; colors[idx * 3 + 2] = c.b;
+              idx++;
+            }
+          }
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 0.25, vertexColors: true, transparent: true, opacity: 0.85 });
+        const pts = new THREE.Points(geo, mat);
+        currentEffectGroup.add(pts);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          pts.rotation.y += dt * 0.25;
+          let i = 0;
+          for (let x = 0; x < gridSide; x++) {
+            for (let y = 0; y < gridSide; y++) {
+              for (let z = 0; z < gridSide; z++) {
+                const bandIdx = (x * 4 + z * 3) % 32;
+                const bandVal = audio.bands32[bandIdx];
+                const baseY = y * spacing - offset;
+                pos.setY(i, baseY + bandVal * 4.5 * react * ((y + 1) / gridSide));
+                i++;
+              }
+            }
+          }
+          pos.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 11. 雙螺旋鏈 (classic_dna)
+      // -------------------------------------------------------
+      else if (fxName === 'classic_dna') {
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+        const meta = [];
+
+        for (let i = 0; i < count; i++) {
+          const t = i / count;
+          const strand = i % 2;
+          const isRung = i % 7 === 0;
+          const y = (t - 0.5) * 24;
+          const ang = t * Math.PI * 6 + strand * Math.PI;
+          const r = isRung ? (Math.random() * 2 - 1) * 4.5 : 4.5;
+          meta.push({ y, ang, r, isRung, t });
+
+          const c = getSafeColor(strand * 0.45 + t * 0.2, 0.15);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 0.25, vertexColors: true, transparent: true, opacity: 0.88 });
+        const pts = new THREE.Points(geo, mat);
+        currentEffectGroup.add(pts);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          pts.rotation.y += dt * (0.5 + audio.mid * 2.2 * react);
+          const scaleR = 1 + audio.bass * 0.42 * react;
+
+          for (let i = 0; i < count; i++) {
+            const m = meta[i];
+            const band = audio.bands32[i % 32];
+            const r = m.r * scaleR * (1 + band * 0.2 * react);
+            pos.setXYZ(i, Math.cos(m.ang) * r, m.y, Math.sin(m.ang) * r);
+          }
+          pos.needsUpdate = true;
+        };
+      }
+
+      // -------------------------------------------------------
+      // 12. 星際穿越 (classic_starfield)
+      // -------------------------------------------------------
+      else if (fxName === 'classic_starfield') {
+        const geo = new THREE.BufferGeometry();
+        const positions = new Float32Array(count * 3);
+        const colors = new Float32Array(count * 3);
+
+        for (let i = 0; i < count; i++) {
+          positions[i * 3] = (Math.random() - 0.5) * 60;
+          positions[i * 3 + 1] = (Math.random() - 0.5) * 60;
+          positions[i * 3 + 2] = (Math.random() - 0.5) * 120;
+          const c = getSafeColor(Math.random(), 0.16);
+          colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
+        }
+        geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+        const mat = new THREE.PointsMaterial({ size: 0.28, vertexColors: true, transparent: true, opacity: 0.9 });
+        const stars = new THREE.Points(geo, mat);
+        currentEffectGroup.add(stars);
+
+        currentEffectUpdater = (dt, time, audio) => {
+          const react = appState.reactivity;
+          const pos = geo.attributes.position;
+          const warpSpeed = 18 + audio.bass * 95 * react;
+          stars.rotation.z += dt * (0.08 + audio.treble * 0.5);
+
+          for (let i = 0; i < count; i++) {
+            let z = pos.getZ(i) + dt * warpSpeed;
+            if (z > 30) z -= 120;
+            pos.setZ(i, z);
+          }
+          pos.needsUpdate = true;
+        };
+      }
+    }
+
+    // =========================================================
+    // 6. 底部 32 頻段古琴視覺條渲染
+    // =========================================================
+    const specCanvas = document.getElementById('spectrum-canvas');
+    const specCtx = specCanvas.getContext('2d');
+
+    function drawSpectrumBars(bands32) {
+      const rect = specCanvas.getBoundingClientRect();
+      if (specCanvas.width !== Math.floor(rect.width) || specCanvas.height !== Math.floor(rect.height)) {
+        specCanvas.width = Math.max(100, Math.floor(rect.width));
+        specCanvas.height = Math.max(24, Math.floor(rect.height));
+      }
+      const w = specCanvas.width;
+      const h = specCanvas.height;
+      specCtx.clearRect(0, 0, w, h);
+
+      const barW = (w / 32) - 2;
+      for (let i = 0; i < 32; i++) {
+        const val = bands32[i] || 0;
+        const barH = Math.max(2, val * (h - 4));
+        const x = i * (w / 32) + 1;
+        const y = h - barH;
+
+        const c = getSafeColor(i / 32, 0.16);
+        specCtx.fillStyle = `#${c.getHexString()}`;
+        specCtx.fillRect(x, y, Math.max(2, barW), barH);
+      }
+    }
+
+    // =========================================================
+    // 7. 介面互動與事件綁定
+    // =========================================================
+    const audioEngine = new AudioEngine();
+    const statusBanner = document.getElementById('status-banner');
+    function updateStatus(msg) {
+      statusBanner.textContent = msg;
+    }
+
+    // 初始化預設參數顯示
+    document.getElementById('tier-label').textContent = DEVICE_TIER.name;
+    document.getElementById('fps-label').textContent = `${DEVICE_TIER.targetFPS} FPS`;
+    document.getElementById('ctrl-particles').value = appState.particleCount;
+    document.getElementById('val-particles').textContent = appState.particleCount;
+
+    const bloomBtn = document.getElementById('btn-bloom');
+    bloomBtn.textContent = `柔光 Bloom：${appState.bloomEnabled ? '開啟' : '關閉'}`;
+    bloomBtn.classList.toggle('active', appState.bloomEnabled);
+
+    // 首次互動啟動預設合成器
+    let audioBootstrapped = false;
+    function bootstrapAudioOnce() {
+      if (!audioBootstrapped) {
+        audioBootstrapped = true;
+        audioEngine.startSynth();
+      }
+    }
+    window.addEventListener('pointerdown', bootstrapAudioOnce, { once: true });
+
+    // 特效切換（不中斷音樂播放）
+    document.querySelectorAll('.fx-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.fx-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        appState.fx = btn.dataset.fx;
+        buildEffect(appState.fx);
+      });
+    });
+
+    // 主題切換
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        appState.theme = btn.dataset.theme;
+        appState.hue = THEMES[appState.theme].baseHue;
+        document.getElementById('ctrl-hue').value = appState.hue;
+        document.getElementById('val-hue').textContent = `${appState.hue}°`;
+        buildEffect(appState.fx);
+      });
+    });
+
+    // 滑桿綁定
+    document.getElementById('ctrl-hue').addEventListener('input', (e) => {
+      appState.hue = Number(e.target.value);
+      document.getElementById('val-hue').textContent = `${appState.hue}°`;
+      buildEffect(appState.fx);
+    });
+
+    document.getElementById('ctrl-brightness').addEventListener('input', (e) => {
+      const pct = Number(e.target.value);
+      appState.brightness = pct / 100;
+      document.getElementById('val-brightness').textContent = `${pct}%`;
+      renderer.toneMappingExposure = 0.45 + appState.brightness * 0.72;
+      buildEffect(appState.fx);
+    });
+
+    document.getElementById('ctrl-particles').addEventListener('input', (e) => {
+      appState.particleCount = Number(e.target.value);
+      document.getElementById('val-particles').textContent = appState.particleCount;
+      buildEffect(appState.fx);
+    });
+
+    document.getElementById('ctrl-reactivity').addEventListener('input', (e) => {
+      appState.reactivity = Number(e.target.value);
+      document.getElementById('val-reactivity').textContent = `${appState.reactivity.toFixed(2)}x`;
+    });
+
+    document.getElementById('ctrl-line-len').addEventListener('input', (e) => {
+      appState.lineLength = Number(e.target.value);
+      document.getElementById('val-line-len').textContent = `${appState.lineLength.toFixed(2)}x`;
+      buildEffect(appState.fx);
+    });
+
+    document.getElementById('ctrl-volume').addEventListener('input', (e) => {
+      const v = Number(e.target.value);
+      document.getElementById('val-volume').textContent = `${v}%`;
+      audioEngine.setVolume(v / 100);
+    });
+
+    bloomBtn.addEventListener('click', () => {
+      appState.bloomEnabled = !appState.bloomEnabled;
+      bloomPass.enabled = appState.bloomEnabled;
+      bloomBtn.textContent = `柔光 Bloom：${appState.bloomEnabled ? '開啟' : '關閉'}`;
+      bloomBtn.classList.toggle('active', appState.bloomEnabled);
+    });
+
+    const autoRotBtn = document.getElementById('btn-auto-rotate');
+    autoRotBtn.addEventListener('click', () => {
+      appState.autoRotate = !appState.autoRotate;
+      controls.autoRotate = appState.autoRotate;
+      autoRotBtn.textContent = `自動巡覽：${appState.autoRotate ? '開啟' : '關閉'}`;
+      autoRotBtn.classList.toggle('active', appState.autoRotate);
+    });
+
+    // 播放/暫停同步
+    function syncPlayButtons(playing) {
+      const topBtn = document.getElementById('btn-play-pause');
+      const botBtn = document.getElementById('bottom-play-btn');
+      topBtn.classList.toggle('active', playing);
+      botBtn.classList.toggle('active', playing);
+      botBtn.textContent = playing ? '❚❚ 暫停' : '▶ 播放';
+    }
+
+    document.getElementById('btn-play-pause').addEventListener('click', () => {
+      const playing = audioEngine.togglePlayPause();
+      syncPlayButtons(playing);
+    });
+    document.getElementById('bottom-play-btn').addEventListener('click', () => {
+      const playing = audioEngine.togglePlayPause();
+      syncPlayButtons(playing);
+    });
+
+    function clearSourceActive() {
+      ['btn-synth', 'btn-upload', 'btn-mic'].forEach(id => {
+        document.getElementById(id).classList.remove('active');
+      });
+    }
+
+    // 原創示範音樂
+    document.getElementById('btn-synth').addEventListener('click', () => {
+      clearSourceActive();
+      document.getElementById('btn-synth').classList.add('active');
+      audioEngine.startSynth();
+      syncPlayButtons(true);
+      updateStatus('目前模式：原創中式五聲電子合成樂（即時驅動三頻）');
+    });
+
+    // 上傳音訊檔案 + 拖放支援
+    const fileInput = document.getElementById('audio-file-input');
+    document.getElementById('btn-upload').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        clearSourceActive();
+        document.getElementById('btn-upload').classList.add('active');
+        audioEngine.loadAudioFile(file);
+        syncPlayButtons(true);
+        updateStatus(`循環播放本地樂曲：${file.name}`);
+      }
+    });
+
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith('audio/')) {
+        clearSourceActive();
+        document.getElementById('btn-upload').classList.add('active');
+        audioEngine.loadAudioFile(file);
+        syncPlayButtons(true);
+        updateStatus(`已拖放載入樂曲：${file.name}`);
+      }
+    });
+
+    // 麥克風收音
+    document.getElementById('btn-mic').addEventListener('click', async () => {
+      try {
+        await audioEngine.startMicrophone();
+        clearSourceActive();
+        document.getElementById('btn-mic').classList.add('active');
+        syncPlayButtons(true);
+        updateStatus('麥克風即時收音中（已自動靜音喇叭輸出防止回授嘯叫）');
+      } catch (err) {
+        updateStatus(`麥克風啟用失敗：${err.message}`);
+      }
+    });
+
+    // YouTube 嵌入解析
+    function extractYouTubeId(input) {
+      const trimmed = input.trim();
+      if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) return trimmed;
+      const match = trimmed.match(/(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/);
+      return match ? match[1] : null;
+    }
+
+    document.getElementById('btn-yt-load').addEventListener('click', () => {
+      const raw = document.getElementById('yt-url-input').value;
+      const vid = extractYouTubeId(raw);
+      if (!vid) {
+        updateStatus('請輸入有效的 YouTube 網址或 11 碼影片 ID。');
+        return;
+      }
+      clearSourceActive();
+      audioEngine.setYouTubeEmbedMode();
+      const wrap = document.getElementById('yt-embed-wrap');
+      wrap.style.display = 'block';
+      wrap.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+      updateStatus('已嵌入 YouTube 播放器。受瀏覽器安全限制，請點擊上方「分享分頁音訊」並勾選分頁音訊以驅動 3D 視覺（未擷取前頻譜維持靜止為 0）。');
+    });
+
+    // 分頁音訊分享
+    document.getElementById('btn-tab-audio').addEventListener('click', async () => {
+      try {
+        await audioEngine.startTabAudioCapture();
+        clearSourceActive();
+        syncPlayButtons(true);
+        updateStatus('已成功擷取分頁真實音軌！3D 視覺正隨分頁音訊即時律動。');
+      } catch (err) {
+        updateStatus(`分頁音訊擷取未完成：${err.message}`);
+      }
+    });
+
+    // 左右卷軸收合（手機版 390x844 預設自動收合避免遮擋中央畫面）
+    const leftScroll = document.getElementById('left-scroll');
+    const rightScroll = document.getElementById('right-scroll');
+    const toggleLeftBtn = document.getElementById('toggle-left-btn');
+    const toggleRightBtn = document.getElementById('toggle-right-btn');
+    const tabLeft = document.getElementById('tab-left');
+    const tabRight = document.getElementById('tab-right');
+
+    function setLeftOpen(open) {
+      leftScroll.classList.toggle('collapsed', !open);
+      toggleLeftBtn.classList.toggle('active', open);
+      tabLeft.style.display = open ? 'none' : 'block';
+      // 窄螢幕互斥展開，避免左右面板重疊遮擋畫面
+      if (open && window.innerWidth <= 900) {
+        setRightOpen(false);
+      }
+    }
+
+    function setRightOpen(open) {
+      rightScroll.classList.toggle('collapsed', !open);
+      toggleRightBtn.classList.toggle('active', open);
+      tabRight.style.display = open ? 'none' : 'block';
+      if (open && window.innerWidth <= 900) {
+        setLeftOpen(false);
+      }
+    }
+
+    toggleLeftBtn.addEventListener('click', () => setLeftOpen(leftScroll.classList.contains('collapsed')));
+    toggleRightBtn.addEventListener('click', () => setRightOpen(rightScroll.classList.contains('collapsed')));
+    document.getElementById('close-left').addEventListener('click', () => setLeftOpen(false));
+    document.getElementById('close-right').addEventListener('click', () => setRightOpen(false));
+    tabLeft.addEventListener('click', () => setLeftOpen(true));
+    tabRight.addEventListener('click', () => setRightOpen(true));
+
+    if (window.innerWidth <= 900) {
+      setLeftOpen(false);
+      setRightOpen(false);
+    }
+
+    // 純視覺模式與 ESC 返回
+    function setZenMode(enabled) {
+      document.body.classList.toggle('zen-mode', enabled);
+    }
+    document.getElementById('zen-btn').addEventListener('click', () => setZenMode(true));
+    document.getElementById('restore-zen-btn').addEventListener('click', () => setZenMode(false));
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('zen-mode')) {
+        setZenMode(false);
+      }
+    });
+
+    // 全螢幕模式
+    document.getElementById('fullscreen-btn').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen?.();
+      } else {
+        document.exitFullscreen?.();
+      }
+    });
+
+    // PNG 截圖下載
+    document.getElementById('screenshot-btn').addEventListener('click', () => {
+      composer.render();
+      const dataURL = renderer.domElement.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `音律雅集-${appState.fx}-${Date.now()}.png`;
+      link.href = dataURL;
+      link.click();
+    });
+
+    // 視窗大小自適應
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloomPass.setSize(w, h);
+    });
+
+    // =========================================================
+    // 8. 幀率節流與分頁隱藏暫停渲染主迴圈
+    // =========================================================
+    buildEffect(appState.fx);
+
+    let lastRenderTime = 0;
+    let totalTime = 0;
+    const frameInterval = 1000 / DEVICE_TIER.targetFPS;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      // 分頁隱藏時自動暫停渲染
+      if (document.hidden) return;
+
+      const deltaMs = now - lastRenderTime;
+      if (deltaMs < frameInterval - 1) return;
+
+      const dt = Math.min(0.05, deltaMs / 1000);
+      lastRenderTime = now;
+      totalTime += dt;
+
+      audioEngine.update();
+      drawSpectrumBars(audioEngine.bands32);
+
+      if (currentEffectUpdater) {
+        currentEffectUpdater(dt, totalTime, audioEngine);
+      }
+
+      controls.update();
+      composer.render();
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
